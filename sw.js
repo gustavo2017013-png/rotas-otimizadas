@@ -1,6 +1,6 @@
 // Rotas Otimizadas — funciona sem internet depois de instalado.
 // Ao mudar qualquer arquivo do app, aumente o número da versão abaixo.
-const VERSION = 'rotas-v2';
+const VERSION = 'rotas-v3';
 const FONTS = 'rotas-fonts';
 const SHELL = [
   './',
