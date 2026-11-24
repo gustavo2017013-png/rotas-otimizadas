@@ -1,7 +1,7 @@
 {
   "name": "Rotas Otimizadas",
   "short_name": "Rotas",
-  "description": "Lê a planilha da rota, junta os pacotes por parada e guia a entrega. Funciona sem internet.",
+  "description": "Lê a planilha da rota, junta os pacotes da mesma parada e devolve a planilha otimizada. Funciona sem internet.",
   "lang": "pt-BR",
   "id": "./",
   "start_url": "./",

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rotas Otimizadas</title>
-<meta name="description" content="Lê a planilha da rota, junta os pacotes por parada e guia a entrega. Funciona sem internet.">
+<meta name="description" content="Lê a planilha da rota, junta os pacotes da mesma parada e devolve a planilha otimizada. Funciona sem internet.">
 <meta name="theme-color" content="#e4572e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -14,118 +14,74 @@
 <style>
 /* VOICE: prático, direto, feito para usar com uma mão na rua
    IDEA: etiqueta de envio / romaneio de entrega
-   PICTURE: a própria lista de paradas, grande, com número da parada em destaque
    COLOUR and TYPE: branco, tinta quase preta, um vermelhão de etiqueta; Archivo
-   LAYOUT: coluna única, envio no topo, resumo, lista de paradas */
+   LAYOUT: coluna única: escolher planilha, resumo, baixar/compartilhar */
 :root{color-scheme:light dark;--bg:light-dark(#ffffff,#121417);--ink:light-dark(#14161a,#eef0f3);--mut:light-dark(#5b6270,#9aa3b2);--line:light-dark(#e3e6eb,#2a2f37);--card:light-dark(#f6f7f9,#1b1f25);--acc:#e4572e;--acc2:light-dark(#fde7df,#3a211a)}
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip}
-.wrap{max-width:760px;margin:0 auto;padding:20px max(4vw,14px) 60px}
+.wrap{max-width:640px;margin:0 auto;padding:20px max(4vw,14px) 60px}
 h1{font-size:clamp(30px,7vw,44px);line-height:1.05;margin:4px 0 6px;font-weight:800;text-wrap:balance}
 .sub{color:var(--mut);margin:0 0 18px}
 .drop{display:block;border:2px dashed var(--line);border-radius:16px;padding:22px;text-align:center;cursor:pointer;background:var(--card)}
 .drop.on{border-color:var(--acc);background:var(--acc2)}
 .drop b{display:block;font-size:19px}
 .drop span{color:var(--mut);font-size:14px}
+.drop:focus-within{outline:3px solid var(--acc);outline-offset:2px}
 input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
-.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
-button,.btn{font:600 16px Archivo,sans-serif;min-height:44px;padding:10px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.col{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+button{font:600 17px Archivo,sans-serif;min-height:52px;padding:10px 16px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;justify-content:center;display:inline-flex;align-items:center}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
-button:focus-visible,.btn:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
-.msg{margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--acc2);display:none}
-.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0 8px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.msg{margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--acc2);display:none;overflow-wrap:anywhere}
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:22px 0 4px}
 .sum div{background:var(--card);border-radius:14px;padding:12px}
-.sum b{display:block;font-size:clamp(26px,7vw,36px);line-height:1.1;font-weight:800}
-.sum span{color:var(--mut);font-size:13px}
-details.cfg{margin:12px 0;border:1px solid var(--line);border-radius:14px;padding:10px 14px}
-details.cfg summary{cursor:pointer;font-weight:600;min-height:32px}
+.sum b{display:block;font-size:clamp(30px,9vw,40px);line-height:1.1;font-weight:800}
+.sum span{color:var(--mut);font-size:14px}
+.file{color:var(--mut);font-size:14px;margin:6px 0 0;overflow-wrap:anywhere}
+details.cfg{margin:18px 0 0;border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+details.cfg summary{cursor:pointer;font-weight:600;min-height:32px;color:var(--mut)}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
 label.f{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
-select,input[type=search]{font:16px Archivo,sans-serif;min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+select{font:16px Archivo,sans-serif;min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
 label.ck{display:flex;gap:8px;align-items:center;margin-top:10px;min-height:44px}
 label.ck input{width:22px;height:22px;accent-color:var(--acc)}
-.list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
-details.all{margin-top:8px}details.all summary{cursor:pointer;font-size:14px;font-weight:600;min-height:32px}
-.stop{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;background:var(--card);border-radius:16px;padding:12px;border-left:6px solid transparent}
-.stop.multi{border-left-color:var(--acc)}
-.stop.done{opacity:.45}
-.stop.fail{opacity:.6;border-left-color:#8a8f98}
-.mode{position:fixed;inset:0;background:var(--bg);z-index:10;overflow-y:auto;display:flex;flex-direction:column}
-.mode .in{max-width:640px;width:100%;margin:0 auto;padding:16px max(4vw,14px) 28px;display:flex;flex-direction:column;gap:14px;flex:1}
-.mtop{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.mtop b{font-size:15px}
-.bar{height:8px;border-radius:99px;background:var(--card);overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
-.mcard{background:var(--card);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:6px}
-.mseq{font-size:clamp(30px,9vw,44px);font-weight:800;line-height:1.05;overflow-wrap:anywhere}
-.mcard .addr{font-size:20px}
-.navbtn{justify-content:center;font-size:19px!important;min-height:60px!important;background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important;border-radius:16px!important}
-.mrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.mrow button{justify-content:center;min-height:56px;font-size:17px}
-button.ok{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
-.mstat{font-weight:600;padding:8px 12px;border-radius:10px;background:var(--acc2)}
-.msmall{display:flex;justify-content:space-between;gap:10px}.msmall button{flex:1;justify-content:center}
-@media(prefers-reduced-motion:reduce){.bar i{transition:none}}
-.num{font-weight:800;font-size:26px;line-height:1.15;overflow-wrap:anywhere}
-.num small{font-size:12px;font-weight:600;color:var(--mut);margin-left:8px}
-.addr{font-weight:600;font-size:17px;line-height:1.3;overflow-wrap:anywhere}
-.meta{color:var(--mut);font-size:14px;margin-top:2px;overflow-wrap:anywhere}
-.tag{display:inline-block;background:var(--acc);color:#fff;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:600;white-space:nowrap;margin-top:6px}
-.codes{font-size:13px;color:var(--mut);margin-top:6px;overflow-wrap:anywhere}
-.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.acts .btn,.acts button{min-height:40px;padding:6px 12px;font-size:14px}
 .note{font-size:13px;color:var(--mut);margin-top:18px}
-@media(max-width:520px){.grid{grid-template-columns:minmax(0,1fr)}.num{font-size:22px}}
+@media(max-width:520px){.grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Rotas otimizadas</h1>
-  <p class="sub">Jogue a planilha da rota e veja uma linha por parada, com os pacotes do mesmo endereço juntos.</p>
+  <p class="sub">Escolha a planilha da rota e baixe ela com uma linha por parada, com os pacotes do mesmo endereço juntos.</p>
 
   <label class="drop" id="drop" for="file">
     <b>Escolher planilha da rota</b>
     <span>.xlsx ou .csv · funciona sem internet, tudo fica no seu celular</span>
     <input type="file" id="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
   </label>
-  <div class="row"><button id="demo">Ver com exemplo</button></div>
-  <div class="msg" id="msg"></div>
+  <div class="msg" id="msg" role="status"></div>
 
   <div id="out" hidden>
     <div class="sum">
       <div><b id="sPk">0</b><span>pacotes</span></div>
       <div><b id="sSt">0</b><span>paradas</span></div>
-      <div><b id="sMu">0</b><span>paradas com 2+</span></div>
     </div>
+    <p class="file" id="sFile"></p>
 
-    <div class="row">
-      <button class="pri" id="go">Iniciar entregas</button>
-      <button id="dl">Baixar planilha otimizada</button>
+    <div class="col">
+      <button class="pri" id="dl">Baixar planilha otimizada</button>
       <button id="sh">Compartilhar</button>
-      <button id="cp">Copiar lista</button>
-      <button id="clr">Zerar marcações</button>
-    </div>
-    <div class="msg" id="clrAsk" role="alertdialog" aria-label="Confirmar zerar marcações" hidden style="display:block">
-      <b>Apagar todas as marcações de entregue e não entregue desta rota?</b> Não dá para desfazer.
-      <div class="row"><button class="pri" id="clrYes">Sim, zerar</button><button id="clrNo">Cancelar</button></div>
     </div>
 
     <details class="cfg" id="cfg">
-      <summary>Ajustar colunas e agrupamento</summary>
+      <summary>Ajustar colunas (só se o resultado sair errado)</summary>
       <div class="grid" id="sel"></div>
-      <label class="ck"><input type="checkbox" id="useComp"> Separar paradas por complemento (apto, bloco)</label>    </details>
-
-    <input type="search" id="q" placeholder="Buscar endereço ou código" aria-label="Buscar">
-    <ol class="list" id="list"></ol>
-    <p class="note">Toque em “Entregue” para riscar a parada. As marcações ficam só neste aparelho. Pode mandar o link do app para os colegas: a planilha é lida no próprio celular e nada da rota é enviado para lugar nenhum.</p>
+      <label class="ck"><input type="checkbox" id="useComp"> Separar paradas por complemento (apto, bloco)</label>
+    </details>
   </div>
-</div>
 
-<section class="mode" id="mode" hidden aria-label="Modo entrega"><div class="in">
-  <div class="mtop"><b id="mCount"></b><button id="mClose">Voltar à lista</button></div>
-  <div class="bar"><i id="mBar"></i></div>
-  <div id="mBody"></div>
-</div></section>
+  <p class="note">A planilha é lida no próprio celular: nada da rota é enviado para lugar nenhum.</p>
+</div>
 
 <script>
 {
@@ -262,9 +218,7 @@ const FIELDS=[
   ['lon','Longitude',['longitude','lng','lon']]
 ];
 
-let rows=[],headers=[],map={},stops=[],st={},fname='rota',cur=-1;
-const saveDone=()=>{try{localStorage.setItem('rotaStatus',JSON.stringify({fname,st}))}catch(e){}};
-const loadDone=()=>{st={};try{const o=JSON.parse(localStorage.getItem('rotaStatus')||'null');if(o&&o.fname===fname)st=o.st||{}}catch(e){}};
+let rows=[],headers=[],map={},stops=[],fname='rota',srcName='';
 
 function say(t){const m=$('msg');m.textContent=t;m.style.display=t?'block':'none'}
 
@@ -282,7 +236,7 @@ function guess(){
 
 function buildSel(){
   const opts=['<option value="">— nenhuma —</option>',...headers.map((h,i)=>`<option value="${i}">${esc(h||'Coluna '+(i+1))}</option>`)].join('');
-  $('sel').innerHTML=FIELDS.map(([k,l])=>`<label class="f">${l}<select data-k="${k}">${opts}</select></label>`).join('');
+  $('sel').innerHTML=FIELDS.filter(([k])=>SHOW.includes(k)).map(([k,l])=>`<label class="f">${l}<select data-k="${k}">${opts}</select></label>`).join('');
   $('sel').querySelectorAll('select').forEach(s=>{s.value=map[s.dataset.k]??'';s.addEventListener('change',()=>{s.value===''?delete map[s.dataset.k]:map[s.dataset.k]=+s.value;group()})});
 }
 
@@ -340,109 +294,23 @@ function merged(s,c){
   return v.join(c===map.code?', ':' / ');
 }
 
-function addrOne(r){const a=val(r,'addr'),n=val(r,'num');return n&&!norm(a).includes(norm(n))?a+', '+n:a}
-function addrList(s){const seen=new Set(),out=[];for(const r of s.items){const a=addrOne(r);const k=norm(a);if(a&&!seen.has(k)){seen.add(k);out.push(a)}}return out}
-function addrText(s){return addrList(s).join(' / ')}
-function compText(s){
-  const c=[...new Set(s.items.map(r=>val(r,'comp')).filter(Boolean))];
-  return c.join(' · ');
-}
+
+// só os campos que mudam o resultado aparecem em "Ajustar colunas"
+const SHOW=['seq','stop','addr','num','comp','cep','code','lat','lon'];
 
 function render(){
   $('out').hidden=false;
   $('sPk').textContent=stops.reduce((t,s)=>t+s.items.length,0);
   $('sSt').textContent=stops.length;
-  $('sMu').textContent=stops.filter(s=>s.items.length>1).length;
-  const q=norm($('q').value);
-  $('list').innerHTML=stops.filter(s=>!q||norm(addrText(s)+' '+s.items.map(r=>val(r,'code')+' '+val(r,'name')).join(' ')).includes(q)).map(s=>{
-    const c=s.items.length,comp=compText(s),bairro=val(s.r,'bairro'),cep=val(s.r,'cep');
-    const codes=s.items.map(r=>val(r,'code')).filter(Boolean);
-    const names=[...new Set(s.items.map(r=>val(r,'name')).filter(Boolean))];
-    const cc=coord(s.r);const mq=encodeURIComponent(cc?cc.join(','):[addrOne(s.r),bairro,val(s.r,'city'),cep].filter(Boolean).join(', '));
-    const others=headers.map((h,i)=>[h,i]).filter(([h,i])=>![map.seq,map.addr,map.code,map.lat,map.lon].includes(i)&&merged(s,i));
-    return `<li class="stop${c>1?' multi':''}${st[s.id]==='ok'?' done':st[s.id]==='fail'?' fail':''}">
-      <div class="num">${esc(s.label)}<small>${stopOf(s.r)!=null?'parada '+esc(stopOf(s.r)):'adicionado'}</small></div>
-      <div>
-        ${addrList(s).map(a=>`<div class="addr">${esc(a)}</div>`).join('')}
-        ${comp?`<div class="meta">${esc(comp)}</div>`:''}
-        ${bairro||cep?`<div class="meta">${esc([bairro,cep].filter(Boolean).join(' · '))}</div>`:''}
-        ${names.length?`<div class="meta">${esc(names.join(', '))}</div>`:''}
-        <span class="tag">${c} pacote${c>1?'s':''}</span>
-        ${codes.length?`<div class="codes">${esc(codes.join(' · '))}</div>`:''}
-        ${others.length?`<details class="all"><summary>Todas as informações</summary>${others.map(([h,i])=>`<div class="meta"><b>${esc(h||'Coluna '+(i+1))}:</b> ${esc(merged(s,i))}</div>`).join('')}</details>`:''}
-        <div class="acts"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=${mq}" target="_blank" rel="noopener">Abrir no mapa</a>${st[s.id]==='fail'?'<span class="tag" style="background:#8a8f98">não entregue</span>':''}<button data-id="${esc(s.id)}">${st[s.id]?'Desfazer':'Entregue'}</button></div>
-      </div></li>`;
-  }).join('')||'<li class="meta">Nada encontrado.</li>';
+  $('sFile').textContent=srcName+' → '+fname+'-otimizada.xlsx';
 }
-
-$('list').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-id]');if(!b)return;
-  const id=b.dataset.id;st[id]?delete st[id]:st[id]='ok';saveDone();render();
-});
-$('q').addEventListener('input',render);
-$('useComp').addEventListener('change',group);
-$('clr').addEventListener('click',()=>{
-  if(!Object.keys(st).length){say('Não há marcações para zerar.');return}
-  say('');$('clrAsk').hidden=false;$('clrNo').focus();
-});
-$('clrNo').addEventListener('click',()=>{$('clrAsk').hidden=true;$('clr').focus()});
-$('clrYes').addEventListener('click',()=>{st={};saveDone();render();$('clrAsk').hidden=true;say('Marcações zeradas.')});
-
-// ===== modo entrega =====
-function navUrl(s){const c=coord(s.r);const d=c?c.join(','):[addrOne(s.r),val(s.r,'bairro'),val(s.r,'city'),val(s.r,'cep')].filter(Boolean).join(', ');return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(d)+'&travelmode=driving&dir_action=navigate'}
-function nextOpen(from){for(let i=Math.max(0,from);i<stops.length;i++)if(!st[stops[i].id])return i;for(let i=0;i<Math.min(from,stops.length);i++)if(!st[stops[i].id])return i;return -1}
-function drawMode(){
-  const N=stops.length,marked=stops.filter(s=>st[s.id]).length;
-  const okS=stops.filter(s=>st[s.id]==='ok'),failS=stops.filter(s=>st[s.id]==='fail');
-  const okP=okS.reduce((t,s)=>t+s.items.length,0),failP=failS.reduce((t,s)=>t+s.items.length,0),allP=stops.reduce((t,s)=>t+s.items.length,0);
-  $('mBar').style.width=(N?marked/N*100:0)+'%';
-  if(cur<0){
-    $('mCount').textContent=`${marked} de ${N} paradas`;
-    $('mBody').innerHTML=`<div class="mcard"><div class="mseq">Rota concluída</div>
-      <div class="meta">${okP} de ${allP} pacotes entregues em ${okS.length} paradas.</div>
-      ${failS.length?`<div class="meta">Não entregues: ${failP} pacote${failP>1?'s':''} em ${failS.length} parada${failS.length>1?'s':''} (${failS.map(s=>esc(s.label)).join(' · ')}).</div>`:''}
-    </div>
-    ${failS.length?`<button id="mRetry" class="pri" style="justify-content:center">Voltar nas ${failS.length} não entregue${failS.length>1?'s':''}</button>`:''}`;
-    return;
-  }
-  const s=stops[cur],c=s.items.length,codes=s.items.map(r=>val(r,'code')).filter(Boolean),comp=compText(s),bairro=val(s.r,'bairro');
-  $('mCount').textContent=`Parada ${cur+1} de ${N} · ${okP} pacotes entregues`;
-  $('mBody').innerHTML=`<div class="mcard">
-      <div class="mseq">${esc(s.label)}</div>
-      ${addrList(s).map(a=>`<div class="addr">${esc(a)}</div>`).join('')}
-      ${comp?`<div class="meta">${esc(comp)}</div>`:''}
-      ${bairro?`<div class="meta">${esc(bairro)}</div>`:''}
-      <div><span class="tag">${c} pacote${c>1?'s':''}</span></div>
-      ${codes.length?`<div class="codes">${esc(codes.join(' · '))}</div>`:''}
-    </div>
-    ${st[s.id]?`<div class="mstat">Marcada como ${st[s.id]==='ok'?'entregue':'não entregue'}. <button id="mUndo">Desfazer</button></div>`:''}
-    <a class="btn navbtn" href="${esc(navUrl(s))}" target="_blank" rel="noopener">Navegar no Google Maps</a>
-    <div class="mrow"><button class="ok" id="mOk">Entregue</button><button id="mFail">Não entregue</button></div>
-    <div class="msmall"><button id="mPrev">‹ Anterior</button><button id="mSkip">Pular ›</button></div>`;
-}
-function mark(v){if(cur<0)return;st[stops[cur].id]=v;saveDone();cur=nextOpen(cur+1);drawMode();render();$('mode').scrollTop=0}
-$('mBody').addEventListener('click',e=>{
-  const id=e.target.closest('button')?.id;if(!id)return;
-  if(id==='mOk')mark('ok');
-  else if(id==='mFail')mark('fail');
-  else if(id==='mSkip'){const n=nextOpen(cur+1);cur=n===cur?cur:n;drawMode()}
-  else if(id==='mPrev'){cur=Math.max(0,cur-1);drawMode()}
-  else if(id==='mUndo'){delete st[stops[cur].id];saveDone();drawMode();render()}
-  else if(id==='mRetry'){
-    // reabre todas as não entregues; como as demais já estão marcadas, o modo entrega passa só por elas, em ordem, até acabar
-    let any=false;for(const s of stops)if(st[s.id]==='fail'){delete st[s.id];any=true}
-    if(any){saveDone();cur=nextOpen(0);drawMode();render();$('mode').scrollTop=0}
-  }
-});
-$('go').addEventListener('click',()=>{if(!stops.length)return;cur=nextOpen(0);$('mode').hidden=false;document.body.style.overflow='hidden';drawMode()});
-$('mClose').addEventListener('click',()=>{$('mode').hidden=true;document.body.style.overflow='';render()});
 
 function load(aoa,name){
   aoa=aoa.filter(r=>r&&r.some(c=>String(c??'').trim()!==''));
-  if(aoa.length<2){say('A planilha parece vazia.');return}
+  if(aoa.length<2){say('A planilha parece vazia.');$('out').hidden=true;return}
   let h=0;for(let i=0;i<Math.min(10,aoa.length);i++){if(aoa[i].filter(c=>typeof c==='string'&&c.trim()).length>=3){h=i;break}}
   headers=aoa[h].map(c=>String(c??'').trim());rows=aoa.slice(h+1);
-  fname=(name||'rota').replace(/\.[^.]+$/,'');loadDone();$('clrAsk').hidden=true;
+  srcName=name||'rota';fname=srcName.replace(/\.[^.]+$/,'');
   guess();buildSel();group();
 }
 
@@ -457,31 +325,17 @@ async function readFile(f){
     say('');load(aoa,f.name);
   }catch(err){say('Não consegui ler esse arquivo. Ele é a planilha .xlsx ou .csv da rota?')}
 }
-$('file').addEventListener('change',e=>readFile(e.target.files[0]));
+$('file').addEventListener('change',e=>{readFile(e.target.files[0]);e.target.value=''});
 const dz=$('drop');
 ['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('on')}));
 ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('on')}));
 dz.addEventListener('drop',e=>readFile(e.dataTransfer.files[0]));
-
-$('demo').addEventListener('click',()=>load([
-  ['Sequence','Stop','SPX TN','Destination Address','Bairro','City','Zipcode/Postal code'],
-  [1,1,'BR001','Rua das Flores, 120','Centro','Exemplo','01000-000'],
-  [2,1,'BR002','Rua das Flores, 120','Centro','Exemplo','01000-000'],
-  [3,1,'BR003','R. das Flores, 120','Centro','Exemplo','01000-000'],
-  [4,2,'BR004','Av. Brasil, 45 - Apto 12','Centro','Exemplo','01000-010'],
-  [5,3,'BR005','Rua Sete, 300','Vila Nova','Exemplo','01000-020'],
-  [6,3,'BR006','Rua Sete, 300','Vila Nova','Exemplo','01000-020'],
-  [7,4,'BR007','Rua das Flores, 120','Centro','Exemplo','01000-000'],
-  [8,5,'BR008','Travessa Lima, 8','Vila Nova','Exemplo','01000-030'],
-  ['','','BR009','Rua Sete, 300','Vila Nova','Exemplo','01000-020'],
-  ['','','BR010','Rua Nova, 77','Jardim','Exemplo','01000-040']
-],'exemplo'));
+$('useComp').addEventListener('change',group);
 
 function lean(){
   return [[...headers.map((h,i)=>h||'Coluna '+(i+1)),'Qtd pacotes'],
     ...stops.map(s=>[...headers.map((h,i)=>merged(s,i)),s.items.length])];
 }
-
 function leanBlob(){
   const L=lean();
   return writeXlsx(L,L[0].map((h,i)=>i===map.addr?48:i===map.code?40:i===map.seq?18:14));
@@ -493,7 +347,7 @@ $('dl').addEventListener('click',()=>{
     const a=document.createElement('a');a.href=url;a.download=fname+'-otimizada.xlsx';document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),60000);
     say('Planilha otimizada baixada. Procure em Downloads: '+fname+'-otimizada.xlsx');
-  }catch(e){say('Não consegui baixar. Use “Copiar lista”.')}
+  }catch(e){say('Não consegui baixar a planilha.')}
 });
 $('sh').addEventListener('click',async()=>{
   if(!stops.length)return;
@@ -501,10 +355,7 @@ $('sh').addEventListener('click',async()=>{
   try{await navigator.share({files:[file],title:'Rota otimizada'})}catch(e){if(e&&e.name!=='AbortError')say('Não deu para compartilhar daqui. Use “Baixar planilha otimizada”.')}
 });
 try{const t=new File([''],'a.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});if(!(navigator.canShare&&navigator.canShare({files:[t]})))$('sh').hidden=true}catch(e){$('sh').hidden=true}
-$('cp').addEventListener('click',async()=>{
-  const t=stops.map(s=>`${s.label}  ${addrText(s)}${compText(s)?' ('+compText(s)+')':''} — ${s.items.length} pct${s.items.length>1?'s':''}`).join('\n');
-  try{await navigator.clipboard.writeText(t);say('Lista copiada.')}catch(e){say('Não deu para copiar automaticamente.')}
-});
+
 // app instalável: guarda tudo no celular para abrir sem internet (só quando aberto pelo link, não como arquivo)
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }

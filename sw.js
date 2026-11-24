@@ -1,6 +1,6 @@
 // Rotas Otimizadas — funciona sem internet depois de instalado.
 // Ao mudar qualquer arquivo do app, aumente o número da versão abaixo.
-const VERSION = 'rotas-v1';
+const VERSION = 'rotas-v2';
 const FONTS = 'rotas-fonts';
 const SHELL = [
   './',
@@ -32,7 +32,7 @@ self.addEventListener('fetch', e => {
 
   if (url.origin === location.origin) {
     // Abre na hora com o que está guardado e atualiza em segundo plano (sinal fraco na rua não trava o app).
-    const key = req.mode === 'navigate' ? './index.html' : req;
+    const key = req.mode === 'navigate' ? './index.html' : url.origin + url.pathname;
     e.respondWith(caches.open(VERSION).then(async cache => {
       const hit = await cache.match(key, { ignoreSearch: true });
       const fresh = fetch(req).then(res => {
