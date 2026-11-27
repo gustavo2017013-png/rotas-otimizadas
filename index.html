@@ -33,7 +33,14 @@ button{font:600 17px Archivo,sans-serif;min-height:52px;padding:10px 16px;border
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .msg{margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--acc2);display:none;overflow-wrap:anywhere}
-.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:22px 0 4px}
+.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0 4px}
+.hint{font-size:14px;color:var(--mut);margin:8px 0}
+.glist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.glist li{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border-radius:10px;padding:4px 4px 4px 12px;overflow-wrap:anywhere}
+.glist button{min-height:44px;font-size:14px;padding:6px 12px}
+.gadd{display:flex;gap:8px;margin-top:10px}
+.gadd input{flex:1;font:16px Archivo,sans-serif;min-height:48px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+button.lnk{background:none;border:0;color:var(--mut);text-decoration:underline;font-size:14px;min-height:44px;padding:6px 0;margin-top:4px}
 .sum div{background:var(--card);border-radius:14px;padding:12px}
 .sum b{display:block;font-size:clamp(30px,9vw,40px);line-height:1.1;font-weight:800}
 .sum span{color:var(--mut);font-size:14px}
@@ -65,7 +72,9 @@ label.ck input{width:22px;height:22px;accent-color:var(--acc)}
     <div class="sum">
       <div><b id="sPk">0</b><span>pacotes</span></div>
       <div><b id="sSt">0</b><span>paradas</span></div>
+      <div><b id="sGps">0</b><span>sem GPS</span></div>
     </div>
+    <p class="file" id="sGpsInfo"></p>
     <p class="file" id="sFile"></p>
 
     <div class="col">
@@ -79,6 +88,18 @@ label.ck input{width:22px;height:22px;accent-color:var(--acc)}
       <label class="ck"><input type="checkbox" id="useComp"> Separar paradas por complemento (apto, bloco)</label>
     </details>
   </div>
+
+  <details class="cfg" id="gps">
+    <summary>Ruas com GPS errado (<span id="gN">0</span>)</summary>
+    <p class="hint">Nessas ruas a planilha otimizada sai sem latitude e longitude, para o Circuit achar o lugar pelo endereço. Pode cadastrar o nome inteiro ou só as palavras principais (ex.: Jaime Coelho).</p>
+    <ul class="glist" id="gList"></ul>
+    <div class="gadd">
+      <input type="text" id="gIn" placeholder="Ex.: R. Carlos Comini ou Jaime Coelho" aria-label="Nova rua com GPS errado" autocomplete="off">
+      <button id="gAdd">Adicionar</button>
+    </div>
+    <div class="msg" id="gMsg" role="status"></div>
+    <button class="lnk" id="gReset">Recolocar as ruas da lista inicial</button>
+  </details>
 
   <p class="note">A planilha é lida no próprio celular: nada da rota é enviado para lugar nenhum.</p>
 </div>
@@ -326,10 +347,128 @@ function merged(s,c){
 // só os campos que mudam o resultado aparecem em "Ajustar colunas"
 const SHOW=['seq','addr','num','comp','code','lat','lon'];
 
+// ===== GPS errado: tira latitude/longitude de linhas em ruas cadastradas ou longe demais da rota =====
+// (não muda o agrupamento: só a saída da planilha)
+const GPS_DEFAULT=['R. Alession Dal Pozo Boti','R. Carlos Comini','R. Darcy Zirondi','R. Antônio Dossi','Av. das Gloriosas','R. Idalina Kellen Françozo','R. Luzia Jociele de Godoy','R. Sd. Arlindo Boeno de Godoy','R. João Marques dos Reis','R. Paulo Afonso','R. Arcebispo Dom Jaime Luiz Coelho','R. José Rigobelli'];
+const GPS_KEY='rotasRuasGpsErrado',GPS_MAX_M=3000;
+let badStreets=(()=>{try{const v=JSON.parse(localStorage.getItem(GPS_KEY)||'null');if(Array.isArray(v))return v.map(String)}catch(e){}return GPS_DEFAULT.slice()})();
+const saveBad=()=>{try{localStorage.setItem(GPS_KEY,JSON.stringify(badStreets))}catch(e){}};
+// tipo/título da rua e palavras de ligação não contam na comparação
+const TITLES=new Set('r rua av avenida avda al alameda tv trav travessa est estr estrada rod rodovia pc pca praca lgo largo viela beco sd soldado arcebispo dom d dr doutor prof professor pe padre cel coronel sgt sargento cap capitao ten tenente gen general ver vereador pres presidente eng engenheiro dep deputado gov governador mal marechal frei cb cabo'.split(' '));
+const LINK=new Set(['de','da','do','das','dos','e']);
+const streetTokens=s=>norm(s).split(' ').filter(t=>t&&!TITLES.has(t)&&!LINK.has(t));
+// só o nome da rua (antes do número), para não comparar com bairro/cidade/referência
+function streetOf(r){const a=val(r,'addr');const f=findNum(a);return f?f.street:String(a).split(',')[0]}
+function lev(a,b){let p=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]}
+// erro de digitação aceito: 1 letra em palavras de 4 a 6 letras, 2 letras em palavras maiores
+function tokCost(a,b){if(a===b)return 0;const L=Math.max(a.length,b.length),lim=L>=7?2:L>=4?1:0;if(!lim||Math.abs(a.length-b.length)>lim)return -1;const d=lev(a,b);return d<=lim?d:-1}
+// cada palavra de "small" precisa casar com uma palavra diferente de "big"; devolve o total de letras erradas e os pares casados
+function subsetMatch(small,big){
+  let cost=0;const used=new Set(),pairs=[];
+  for(const t of small){let best=-1,bi=-1;big.forEach((u,j)=>{if(used.has(j))return;const d=tokCost(t,u);if(d>=0&&(best<0||d<best)){best=d;bi=j}});if(bi<0)return null;used.add(bi);cost+=best;pairs.push([t,big[bi]])}
+  return {cost,pairs};
+}
+// mesma rua: o nome do endereço está todo dentro do cadastro (endereço incompleto) ou o cadastro (palavras-chave) está todo dentro do endereço.
+// Precisa casar pelo menos 2 palavras PRINCIPAIS do cadastro. Palavra que aparece em mais de uma rua da lista
+// (ex.: "Godoy") não é principal: "Luzia de Godoy" não vira "Luzia Jociele de Godoy" nem "Arlindo Boeno de Godoy".
+function sameStreet(addrT,entryT,common){
+  if(!addrT.length||!entryT.length)return false;
+  const main=entryT.filter(t=>!common.has(t));
+  const need=main.length?Math.min(2,main.length):entryT.length;
+  for(const [small,big,entryIsBig] of [[addrT,entryT,true],[entryT,addrT,false]]){
+    if(small.length<Math.min(2,entryT.length))continue;
+    const m=subsetMatch(small,big);if(!m||m.cost>2)continue;
+    const hitEntry=m.pairs.map(p=>entryIsBig?p[1]:p[0]);
+    const hits=main.length?hitEntry.filter(t=>!common.has(t)).length:hitEntry.length;
+    if(hits>=need)return true;
+  }
+  return false;
+}
+const median=a=>{const b=[...a].sort((x,y)=>x-y),m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2};
+function computeGps(){
+  const entries=badStreets.map(streetTokens).filter(t=>t.length);
+  const cnt={};for(const e of entries)for(const t of new Set(e))cnt[t]=(cnt[t]||0)+1;
+  const common=new Set(Object.keys(cnt).filter(t=>cnt[t]>1));
+  const cs=rows.map(coord).filter(Boolean);
+  const med=cs.length?[median(cs.map(c=>c[0])),median(cs.map(c=>c[1]))]:null;
+  let byList=0,byFar=0;
+  for(const s of stops){
+    s.gpsOff='';
+    if(map.lat==null||map.lon==null)continue;
+    const c=coord(s.r);if(!c)continue;
+    if(s.items.some(r=>{const t=streetTokens(streetOf(r));return entries.some(e=>sameStreet(t,e,common))})){s.gpsOff='lista';byList++}
+    else if(med&&dist(c,med)>GPS_MAX_M){s.gpsOff='longe';byFar++}
+  }
+  return {byList,byFar,total:byList+byFar};
+}
+// endereço limpo para o Circuit: sem "N/A", vírgulas sobrando, cidade/estado/CEP repetidos
+const UFS=new Set('ac al ap am ba ce df es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc sp se to'.split(' '));
+const STATES=new Set(['acre','alagoas','amapa','amazonas','bahia','ceara','distrito federal','espirito santo','goias','maranhao','mato grosso','mato grosso do sul','minas gerais','para','paraiba','parana','pernambuco','piaui','rio de janeiro','rio grande do norte','rio grande do sul','rondonia','roraima','santa catarina','sao paulo','sergipe','tocantins','brasil','brazil']);
+function cleanAddr(a,r){
+  const city=norm(val(r,'city')),cep=val(r,'cep').replace(/\D/g,'');
+  const placeTok=new Set([...city.split(' '),...[...STATES].join(' ').split(' '),...UFS].filter(Boolean));
+  const isPlace=p=>{
+    const n=norm(p),d=String(p).replace(/\D/g,'');
+    if(!n||/^(n a|na|null|undefined)$/.test(n))return true;
+    if((cep&&d===cep&&!/[a-z]/.test(n))||/^\d{5}\s?-?\s?\d{3}$/.test(String(p).trim()))return true;
+    if((city&&n===city)||STATES.has(n))return true;
+    const t=n.split(' ');
+    return (city&&n.includes(city)||[...STATES].some(s=>s.length>3&&n.includes(s)))&&t.every(x=>placeTok.has(x)||x===cep);
+  };
+  let parts=String(a).split(',').map(p=>p.trim());
+  const head=parts.shift()||'';
+  const gone=parts.filter(p=>isPlace(p));
+  parts=parts.filter(p=>!isPlace(p));
+  while(parts.length&&UFS.has(norm(parts[parts.length-1])))gone.push(parts.pop()); // "PR" sobrando no fim
+  // cidade, estado e CEP entram UMA vez no fim, para o Circuit buscar na cidade certa
+  const d=(cep||gone.map(p=>String(p).replace(/\D/g,'')).find(x=>x.length===8)||'');
+  const cepTxt=d.length===8?d.slice(0,5)+'-'+d.slice(5):'';
+  const uf=ufOf(gone,d);
+  const cityTxt=String(val(r,'city')).trim()||(gone.find(p=>{const n=norm(p);return n&&!STATES.has(n)&&!UFS.has(n)&&!/\d/.test(n)&&!/^(n a|na|null|undefined)$/.test(n)})||'').trim();
+  return [head,...parts,cityTxt,uf,cepTxt].filter(Boolean).join(', ');
+}
+// sigla do estado: do que estava escrito no endereço ou, se não tiver, pela faixa do CEP
+const STATE_UF={acre:'AC',alagoas:'AL',amapa:'AP',amazonas:'AM',bahia:'BA',ceara:'CE','distrito federal':'DF','espirito santo':'ES',goias:'GO',maranhao:'MA','mato grosso':'MT','mato grosso do sul':'MS','minas gerais':'MG',para:'PA',paraiba:'PB',parana:'PR',pernambuco:'PE',piaui:'PI','rio de janeiro':'RJ','rio grande do norte':'RN','rio grande do sul':'RS',rondonia:'RO',roraima:'RR','santa catarina':'SC','sao paulo':'SP',sergipe:'SE',tocantins:'TO'};
+const CEP_UF=[[1000,19999,'SP'],[20000,28999,'RJ'],[29000,29999,'ES'],[30000,39999,'MG'],[40000,48999,'BA'],[49000,49999,'SE'],[50000,56999,'PE'],[57000,57999,'AL'],[58000,58999,'PB'],[59000,59999,'RN'],[60000,63999,'CE'],[64000,64999,'PI'],[65000,65999,'MA'],[66000,68899,'PA'],[68900,68999,'AP'],[69000,69299,'AM'],[69300,69399,'RR'],[69400,69899,'AM'],[69900,69999,'AC'],[70000,72799,'DF'],[72800,72999,'GO'],[73000,73699,'DF'],[73700,76799,'GO'],[76800,76999,'RO'],[77000,77999,'TO'],[78000,78899,'MT'],[79000,79999,'MS'],[80000,87999,'PR'],[88000,89999,'SC'],[90000,99999,'RS']];
+function ufOf(parts,cep){
+  for(const p of parts){const n=norm(p);if(STATE_UF[n])return STATE_UF[n];if(UFS.has(n))return n.toUpperCase();
+    for(const t of n.split(' '))if(UFS.has(t)&&n!==t&&t.length===2)return t.toUpperCase()}
+  const k=+String(cep).slice(0,5);const hit=k&&CEP_UF.find(([a,b])=>k>=a&&k<=b);return hit?hit[2]:'';
+}
+function drawGps(){
+  $('gN').textContent=badStreets.length;
+  $('gList').innerHTML=badStreets.map((s,i)=>`<li><span>${esc(s)}</span><button data-i="${i}" aria-label="Remover ${esc(s)}">Remover</button></li>`).join('')||'<li class="hint">Nenhuma rua cadastrada.</li>';
+}
+const gSay=t=>{const m=$('gMsg');m.textContent=t;m.style.display=t?'block':'none'};
+function addStreet(){
+  const v=$('gIn').value.trim().replace(/\s+/g,' ');
+  const t=streetTokens(v);
+  if(!t.length){gSay('Escreva o nome da rua ou as palavras principais dela.');return}
+  if(badStreets.some(s=>streetTokens(s).join(' ')===t.join(' '))){gSay('Essa rua já está na lista.');return}
+  badStreets.push(v);saveBad();drawGps();$('gIn').value='';
+  gSay(t.length<2?`Adicionada. Atenção: com uma palavra só, qualquer rua com “${v}” no nome sai sem GPS. Se não for isso, toque em Remover.`:'Adicionada.');
+  if(stops.length)render();
+}
+$('gAdd').addEventListener('click',addStreet);
+$('gIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStreet()}});
+$('gList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-i]');if(!b)return;
+  const [gone]=badStreets.splice(+b.dataset.i,1);saveBad();drawGps();gSay(`Removida: ${gone}`);if(stops.length)render();
+});
+$('gReset').addEventListener('click',()=>{
+  const have=new Set(badStreets.map(s=>streetTokens(s).join(' ')));let n=0;
+  for(const s of GPS_DEFAULT)if(!have.has(streetTokens(s).join(' '))){badStreets.push(s);n++}
+  saveBad();drawGps();gSay(n?`${n} rua${n>1?'s':''} da lista inicial recolocada${n>1?'s':''}.`:'Todas as ruas da lista inicial já estão aí.');if(stops.length)render();
+});
+drawGps();
+
 function render(){
   $('out').hidden=false;
   $('sPk').textContent=stops.reduce((t,s)=>t+s.items.length,0);
   $('sSt').textContent=stops.length;
+  const g=computeGps();
+  $('sGps').textContent=g.total;
+  $('sGpsInfo').textContent=g.total?`GPS removido em ${g.total} linha${g.total>1?'s':''}: ${[g.byList?g.byList+' pela lista de ruas':'',g.byFar?g.byFar+' por estar a mais de 3 km da rota':''].filter(Boolean).join(' e ')}.`:'Nenhuma linha precisou ficar sem GPS.';
   $('sFile').textContent=srcName+' → '+fname+'-otimizada.xlsx';
 }
 
@@ -361,8 +500,14 @@ dz.addEventListener('drop',e=>readFile(e.dataTransfer.files[0]));
 $('useComp').addEventListener('change',group);
 
 function lean(){
-  return [[...headers.map((h,i)=>h||'Coluna '+(i+1)),'Qtd pacotes'],
-    ...stops.map(s=>[...headers.map((h,i)=>merged(s,i)),s.items.length])];
+  computeGps();
+  const cell=(s,i)=>{
+    if(s.gpsOff&&(i===map.lat||i===map.lon))return '';
+    if(s.gpsOff&&i===map.addr)return cleanAddr(val(s.r,'addr'),s.r);
+    return merged(s,i);
+  };
+  return [[...headers.map((h,i)=>h||'Coluna '+(i+1)),'Qtd pacotes','GPS removido'],
+    ...stops.map(s=>[...headers.map((h,i)=>cell(s,i)),s.items.length,s.gpsOff?'sim':''])];
 }
 function leanBlob(){
   const L=lean();
