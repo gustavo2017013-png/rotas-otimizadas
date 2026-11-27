@@ -1,0 +1,43 @@
+/* VOICE: prático, direto, feito para usar com uma mão na rua
+   IDEA: etiqueta de envio / romaneio de entrega
+   COLOUR and TYPE: branco, tinta quase preta, um vermelhão de etiqueta; fonte do próprio sistema (nada carregado de fora)
+   LAYOUT: coluna única: escolher planilha, resumo, baixar/compartilhar */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121417);--ink:light-dark(#14161a,#eef0f3);--mut:light-dark(#5b6270,#9aa3b2);--line:light-dark(#e3e6eb,#2a2f37);--card:light-dark(#f6f7f9,#1b1f25);--acc:#e4572e;--acc2:light-dark(#fde7df,#3a211a)}
+*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:clip}
+.wrap{max-width:640px;margin:0 auto;padding:20px max(4vw,14px) 60px}
+h1{font-size:clamp(30px,7vw,44px);line-height:1.05;margin:4px 0 6px;font-weight:800;text-wrap:balance}
+.sub{color:var(--mut);margin:0 0 18px}
+.drop{display:block;border:2px dashed var(--line);border-radius:16px;padding:22px;text-align:center;cursor:pointer;background:var(--card)}
+.drop.on{border-color:var(--acc);background:var(--acc2)}
+.drop b{display:block;font-size:19px}
+.drop span{color:var(--mut);font-size:14px}
+.drop:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.col{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+button{font:600 17px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:52px;padding:10px 16px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;justify-content:center;display:inline-flex;align-items:center}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.msg{margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--acc2);display:none;overflow-wrap:anywhere}
+.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0 4px}
+.hint{font-size:14px;color:var(--mut);margin:8px 0}
+.glist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.glist li{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border-radius:10px;padding:4px 4px 4px 12px;overflow-wrap:anywhere}
+.glist button{min-height:44px;font-size:14px;padding:6px 12px}
+.gadd{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px;margin-top:10px;align-items:end}
+.gadd input{width:100%;font:16px system-ui,sans-serif;min-height:48px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+button.lnk{background:none;border:0;color:var(--mut);text-decoration:underline;font-size:14px;min-height:44px;padding:6px 0;margin-top:4px}
+.sum div{background:var(--card);border-radius:14px;padding:12px}
+.sum b{display:block;font-size:clamp(30px,9vw,40px);line-height:1.1;font-weight:800}
+.sum span{color:var(--mut);font-size:14px}
+.file{color:var(--mut);font-size:14px;margin:6px 0 0;overflow-wrap:anywhere}
+details.cfg{margin:18px 0 0;border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+details.cfg summary{cursor:pointer;font-weight:600;min-height:32px;color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+label.f{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+select{font:16px system-ui,sans-serif;min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+label.ck{display:flex;gap:8px;align-items:center;margin-top:10px;min-height:44px}
+label.ck input{width:22px;height:22px;accent-color:var(--acc)}
+.note{font-size:14px;font-weight:600;color:var(--mut);margin-top:22px;padding-top:14px;border-top:1px solid var(--line)}
+.glist small{color:var(--mut);margin-left:6px}
+@media(max-width:520px){.grid,.gadd{grid-template-columns:minmax(0,1fr)}}
