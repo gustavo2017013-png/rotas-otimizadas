@@ -39,5 +39,12 @@ select{font:16px system-ui,sans-serif;min-height:44px;padding:8px 10px;border-ra
 label.ck{display:flex;gap:8px;align-items:center;margin-top:10px;min-height:44px}
 label.ck input{width:22px;height:22px;accent-color:var(--acc)}
 .note{font-size:14px;font-weight:600;color:var(--mut);margin-top:22px;padding-top:14px;border-top:1px solid var(--line)}
-.glist small{color:var(--mut);margin-left:6px}
+.glist small{display:block;color:var(--mut);font-size:13px}
+.lbtn{display:flex;gap:6px;flex-shrink:0}
+.gform{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding:12px;border-radius:12px;background:var(--card)}
+.gform input{width:100%;font:16px system-ui,sans-serif;min-height:48px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.frow{display:flex;gap:8px}.frow button{flex:1}
+label.btn{font:600 17px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:52px;padding:10px 16px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center}
+label.btn:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+.ver{font-size:12px;color:var(--mut);margin:4px 0 0}
 @media(max-width:520px){.grid,.gadd{grid-template-columns:minmax(0,1fr)}}

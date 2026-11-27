@@ -31,7 +31,7 @@
     <div class="sum">
       <div><b id="sPk">0</b><span>pacotes</span></div>
       <div><b id="sSt">0</b><span>paradas</span></div>
-      <div><b id="sGps">0</b><span>sem GPS</span></div>
+      <div><b id="sGps">0</b><span>GPS ajustado</span></div>
     </div>
     <p class="file" id="sGpsInfo"></p>
     <p class="file" id="sFile"></p>
@@ -50,18 +50,49 @@
 
   <details class="cfg" id="gps">
     <summary>Ruas com GPS errado (<span id="gN">0</span>)</summary>
-    <p class="hint">Nessas ruas a planilha otimizada sai sem latitude e longitude, para o Circuit achar o lugar pelo endereço. Só vale quando a cidade da linha (coluna City) é a mesma da rua cadastrada. Pode cadastrar o nome inteiro ou só as palavras principais (ex.: Jaime Coelho).</p>
+    <p class="hint">Só vale quando a cidade da linha (coluna City) é a mesma da rua cadastrada. Pode cadastrar o nome inteiro ou só as palavras principais (ex.: Jaime Coelho).</p>
+    <p class="hint"><b>Sem ponto de referência:</b> a planilha sai sem latitude e longitude nessa rua, e o Circuit procura pelo endereço.<br><b>Com ponto de referência:</b> se o GPS da Shopee estiver dentro do raio, fica como veio; se estiver fora, é trocado pelo ponto.</p>
     <ul class="glist" id="gList"></ul>
-    <div class="gadd">
+    <div class="gform">
+      <b id="gFormT">Adicionar rua</b>
       <label class="f">Rua<input type="text" id="gIn" placeholder="Ex.: R. Carlos Comini ou Jaime Coelho" autocomplete="off"></label>
       <label class="f">Cidade<input type="text" id="gCity" placeholder="Ex.: Paiçandu" autocomplete="off"></label>
-      <button id="gAdd">Adicionar</button>
+      <label class="f">Ponto de referência (opcional, copiado do Google Maps)<input type="text" id="gRef" placeholder="-23.4521, -52.0533" autocomplete="off" inputmode="text"></label>
+      <label class="f">Raio em metros<input type="number" id="gRaio" min="10" step="50" value="500" inputmode="numeric"></label>
+      <div class="frow"><button class="pri" id="gSave">Adicionar</button><button id="gCancel" hidden>Cancelar</button></div>
     </div>
     <div class="msg" id="gMsg" role="status"></div>
     <button class="lnk" id="gReset">Recolocar as ruas da lista inicial</button>
   </details>
 
+  <details class="cfg" id="fix">
+    <summary>Endereços corrigidos (<span id="fN">0</span>)</summary>
+    <p class="hint">Para um endereço exato que a Shopee erra: a planilha sai sempre com as coordenadas que você cadastrar aqui. No Google Maps, toque e segure no lugar certo e copie os números que aparecem.</p>
+    <ul class="glist" id="fList"></ul>
+    <div class="gform">
+      <b id="fFormT">Adicionar endereço</b>
+      <label class="f">Rua<input type="text" id="fRua" placeholder="Ex.: R. Darcy Zirondi" autocomplete="off"></label>
+      <label class="f">Número<input type="text" id="fNum" placeholder="Ex.: 270" autocomplete="off" inputmode="numeric"></label>
+      <label class="f">Cidade<input type="text" id="fCity" placeholder="Ex.: Paiçandu" autocomplete="off"></label>
+      <label class="f">Coordenadas (copiadas do Google Maps)<input type="text" id="fCoord" placeholder="-23.4521, -52.0533" autocomplete="off"></label>
+      <div class="frow"><button class="pri" id="fSave">Adicionar</button><button id="fCancel" hidden>Cancelar</button></div>
+    </div>
+    <div class="msg" id="fMsg" role="status"></div>
+  </details>
+
+  <details class="cfg" id="share">
+    <summary>Passar as listas para colegas</summary>
+    <p class="hint">Gera um arquivo com as duas listas (ruas com GPS errado e endereços corrigidos). O colega da mesma cidade toca em “Importar listas” e escolhe o arquivo: as listas são somadas às dele, e o que for igual é atualizado.</p>
+    <div class="col">
+      <button id="xShare">Compartilhar listas</button>
+      <button id="xOut">Baixar arquivo das listas</button>
+      <label class="btn" for="xIn">Importar listas<input type="file" id="xIn" accept=".json,application/json"></label>
+    </div>
+    <div class="msg" id="xMsg" role="status"></div>
+  </details>
+
   <p class="note">Sua planilha é processada só no seu celular. Nenhum dado é enviado.</p>
+  <p class="ver">Versão 7 · 27/11/2026</p>
 </div>
 
 <script src="app.js"></script>

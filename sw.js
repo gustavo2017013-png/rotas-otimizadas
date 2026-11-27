@@ -1,7 +1,7 @@
 // Rotas Otimizadas — funciona sem internet depois de instalado.
 // Só guarda e entrega os arquivos do próprio app. Nunca envia nada e não acessa nenhum outro site.
 // Ao mudar qualquer arquivo do app, aumente o número da versão abaixo.
-const VERSION = 'rotas-v6';
+const VERSION = 'rotas-v7';
 const SHELL = [
   './',
   './index.html',
@@ -14,13 +14,14 @@ const SHELL = [
   './icon-maskable-512.png',
   './icon-180.png'
 ];
+const WAIT_MS = 3000; // com internet lenta, depois disso abre a cópia guardada
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
-  // apaga as versões antigas guardadas (inclusive a antiga cópia das fontes)
+  // apaga as versões antigas guardadas
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
@@ -34,15 +35,19 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // nada de outros sites passa por aqui
 
-  // Abre na hora com o que está guardado e atualiza em segundo plano (sinal fraco na rua não trava o app).
+  // Com internet: pega a versão mais nova na hora (e guarda). Sem internet ou sinal fraco: usa a cópia guardada.
   const key = req.mode === 'navigate' ? './index.html' : url.origin + url.pathname;
   e.respondWith(caches.open(VERSION).then(async cache => {
-    const hit = await cache.match(key, { ignoreSearch: true });
-    const fresh = fetch(req).then(res => {
+    const fresh = fetch(req, { cache: 'no-cache' }).then(res => {
       if (res && res.ok) cache.put(key, res.clone());
       return res;
     }).catch(() => null);
-    if (hit) { e.waitUntil(fresh); return hit; }
+    e.waitUntil(fresh);
+    const timeout = new Promise(r => setTimeout(() => r(null), WAIT_MS));
+    const net = await Promise.race([fresh, timeout]);
+    if (net && net.ok) return net;
+    const hit = await cache.match(key, { ignoreSearch: true });
+    if (hit) return hit;
     return (await fresh) || new Response('Sem internet e sem cópia guardada.', { status: 503 });
   }));
 });
